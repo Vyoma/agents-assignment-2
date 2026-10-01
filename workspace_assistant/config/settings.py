@@ -23,8 +23,6 @@ class Settings:
     max_retries: int = 3
     retry_delay: float = 1.0
     calendar_max_results: int = 50
-    gmail_max_results: int = 100
-    sheets_max_rows: int = 1000
 
     def __init__(self):
         load_dotenv()
@@ -43,8 +41,6 @@ class Settings:
         self.max_retries = int(os.getenv("MAX_RETRIES", "3"))
         self.retry_delay = float(os.getenv("RETRY_DELAY", "1.0"))
         self.calendar_max_results = int(os.getenv("CALENDAR_MAX_RESULTS", "50"))
-        self.gmail_max_results = int(os.getenv("GMAIL_MAX_RESULTS", "100"))
-        self.sheets_max_rows = int(os.getenv("SHEETS_MAX_ROWS", "1000"))
 
     def validate(self) -> bool:
         """Check if configuration is valid."""
