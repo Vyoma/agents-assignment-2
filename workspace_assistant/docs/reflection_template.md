@@ -1,7 +1,7 @@
 # Assignment 2 Reflection
 
 **Name:** [Your name]
-**Option:** [A/B/C - Calendar/Gmail/Sheets]
+**Option:** [A/B - Calendar/Tasks]
 **Date:** [Submission date]
 
 ---

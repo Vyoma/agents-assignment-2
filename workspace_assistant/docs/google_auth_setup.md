@@ -18,14 +18,9 @@ Enable the API for your chosen option:
 - Search "Google Calendar API"
 - Click "Enable"
 
-**Option B - Gmail:**
+**Option B - Tasks:**
 - Go to APIs & Services → Library
-- Search "Gmail API"
-- Click "Enable"
-
-**Option C - Sheets:**
-- Go to APIs & Services → Library
-- Search "Google Sheets API"
+- Search "Google Tasks API"
 - Click "Enable"
 
 ## Step 3: Configure OAuth Consent Screen
@@ -39,8 +34,7 @@ Enable the API for your chosen option:
 4. Click "Save and Continue"
 5. Add scopes (click "Add or Remove Scopes"):
    - Calendar: `https://www.googleapis.com/auth/calendar`
-   - Gmail: `https://www.googleapis.com/auth/gmail.readonly`
-   - Sheets: `https://www.googleapis.com/auth/spreadsheets.readonly`
+   - Tasks: `https://www.googleapis.com/auth/tasks`
 6. Click "Save and Continue"
 7. Add your email as a test user
 8. Click "Save and Continue"
