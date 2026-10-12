@@ -252,33 +252,86 @@ Your agent should handle:
 | GitHub Queries Work | 15 |
 | Error Handling | 5 |
 
-**Bonus (+25):** Implement tool search with `defer_loading`
+**Bonus (+25):** Tool search: load GitHub tools on demand (B1 to B5 below)
 
 ### Bonus: Tool Search Pattern (+25 pts)
 
-**What:** Implement the `defer_loading` pattern so your agent doesn't load all 15+ GitHub MCP tools upfront—only searches and loads what it needs.
+**What:** Don't declare every GitHub MCP tool to the model up front (`@modelcontextprotocol/server-github` has 26). Start with a search tool plus at most 2 always-loaded GitHub tools. The agent searches for the tool it needs, then uses it.
 
-**Why:** Reduces token usage by ~80% (from ~8K to ~1.5K tokens for GitHub tools).
+**Why:** Every declared tool's name, description and input schema is sent on every model call. Fewer declared tools means a smaller prompt. How much smaller is something you measure (B5).
 
-**How:**
-1. Add a `search_github_tools` tool to your agent (10 pts)
-2. Configure McpToolset with `defer_loading=True` (10 pts)
-3. Implement `create_agent_with_tool_search()` in agent.py (5 pts)
+**Correction (Oct 11):** An earlier version of this section said to configure McpToolset with `defer_loading=True`. Google ADK has no such parameter. Passing it raises `TypeError: McpToolset.__init__() got an unexpected keyword argument 'defer_loading'` (checked on google-adk 1.18.0, the minimum in `requirements.txt`, and 2.11.0, the latest release on Oct 11). `defer_loading` is a field in Anthropic's Messages API, not in ADK. Build the pattern with the ADK pieces below. No points depend on the name `defer_loading`.
 
-**Required Comparison:**
-In your reflection, include a comparison showing token/context bloat:
-- Run your agent **without** `defer_loading` and note the context size
-- Run your agent **with** `defer_loading` and note the context size
-- Calculate the % reduction in tokens
+**ADK building blocks:**
+- **Deferred toolset:** `McpToolset(..., tool_filter=fn)`. `tool_filter` can be a function `fn(tool, readonly_context=None) -> bool`. ADK calls it whenever it lists tools for the model, and `readonly_context.state` is the session state. Return True for your always-loaded tools and for the names your search stored in state. Also return True when `readonly_context` is None: then `await toolset.get_tools()` with no argument returns every tool, which is the catalog your search needs.
+- **Search tool:** `search_github_tools(query: str, tool_context: ToolContext) -> dict`. A tool function can take a `tool_context: ToolContext` parameter: ADK fills it in and hides it from the model. Rank the catalog against the query, store the names you found in `tool_context.state`, and return each match's name, description and input schema.
+- **Input schema:** `tool.raw_mcp_tool.model_dump(by_alias=True)["inputSchema"]` gives an MCP tool's input schema on both mcp 1.x and 2.x.
+- **Same-message use:** ADK 2.x (what `pip install -r requirements.txt` installs today) lists each toolset's tools once per user message, so a tool your filter unlocks mid-message is only declared from the user's next message. ADK 1.x re-lists before every model call. To search for a tool and use it within one user message on 2.x, do one of these:
+  - add a proxy tool `call_github_tool(tool_name: str, arguments: dict, tool_context: ToolContext)` that looks the tool up in `await toolset.get_tools()` and runs it with `await tool.run_async(args=arguments, tool_context=tool_context)`, or
+  - set `toolset._use_invocation_cache = False` so ADK re-lists before every model call. It is a private ADK attribute that can change between releases, so add a comment, or
+  - pin `google-adk` to 1.x in `requirements.txt`.
 
-Example comparison:
-| Mode | Tools Loaded | Approx Tokens |
-|------|--------------|---------------|
-| Without defer_loading | 15+ GitHub tools | ~8,000 |
-| With defer_loading | 1-2 tools + search | ~1,500 |
-| **Savings** | | **~80%** |
+**Points (+25):**
 
-See `tools/mcp_tools.py` for scaffolding
+| # | What is checked | Points |
+|---|---|---|
+| B1 | Small upfront tool set: the first model request of `create_agent_with_tool_search()` declares only your search helpers (`search_github_tools`, plus `call_github_tool` if you add one) and at most 2 always-loaded GitHub tools. Part 1 tools don't count. | 5 |
+| B2 | `search_github_tools`: searches the tool list the MCP server returns (`get_tools()`), not a hand-written list (3). Returns at most 5 matches, best first: "list issues" and "create issue" give `list_issues` and `create_issue` first (2). | 5 |
+| B3 | Found tools are usable: a tool returned by search can be run (4), the model has its real input schema when it calls it (2), and search then use completes within one user message on the ADK version your `requirements.txt` installs (2). | 8 |
+| B4 | `create_agent_with_tool_search()` in `agent.py`: builds without error (1) and keeps your Part 1 Calendar/Tasks tools (1). | 2 |
+| B5 | Measured token comparison in your reflection: both agents measured on the same query, with ADK version and model (3), % reduction computed from your numbers (1), one limit you noticed (1). | 5 |
+
+See `tools/mcp_tools.py` for scaffolding.
+
+#### B5: Measure the token savings (don't estimate)
+
+Run `create_agent()` and `create_agent_with_tool_search()` on the same query and record the prompt tokens Gemini reports. Use either:
+- `event.usage_metadata.prompt_token_count` on the events from `runner.run_async(...)`, as in the script below, or
+- Gemini's `countTokens` API on the same request.
+
+Estimates, such as characters / 4, don't count. There is no expected value: the numbers depend on your ADK version, model, instruction and query. Earlier versions of this README showed example token numbers that were never measured, so don't reuse them.
+
+```python
+# measure_tokens.py: run from workspace_assistant/ with your real .env
+import asyncio
+
+import google.adk
+from dotenv import load_dotenv
+from google.adk.runners import InMemoryRunner
+from google.genai import types
+
+from agent import create_agent, create_agent_with_tool_search
+
+QUERY = "Show open issues in octocat/Hello-World"  # same query for both agents
+
+
+async def prompt_tokens(agent) -> list[int]:
+    """Prompt tokens of each model call in one user message."""
+    runner = InMemoryRunner(agent=agent, app_name="measure")
+    session = await runner.session_service.create_session(app_name="measure", user_id="u")
+    message = types.Content(role="user", parts=[types.Part(text=QUERY)])
+    counts = []
+    async for event in runner.run_async(user_id="u", session_id=session.id, new_message=message):
+        if event.usage_metadata and event.usage_metadata.prompt_token_count:
+            counts.append(event.usage_metadata.prompt_token_count)
+    await runner.close()
+    return counts
+
+
+async def main():
+    load_dotenv()
+    print(f"google-adk {google.adk.__version__}, query: {QUERY!r}")
+    for build in (create_agent, create_agent_with_tool_search):
+        agent = build()
+        counts = await prompt_tokens(agent)
+        print(f"{build.__name__} ({agent.model}): first call {counts[0]}, "
+              f"whole turn {sum(counts)} over {len(counts)} model calls")
+
+
+asyncio.run(main())
+```
+
+Put the results in the "Bonus: Token Comparison" table in [docs/reflection_template.md](workspace_assistant/docs/reflection_template.md): ADK version, model, query, and first-call and whole-turn prompt tokens for both agents, then the % reduction and one limit you noticed. For example, the search adds a model call, so whole-turn savings are smaller than first-call savings.
 
 ---
 

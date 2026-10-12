@@ -39,6 +39,21 @@
 
 ---
 
+## Bonus: Token Comparison
+
+Only if you did the bonus. Measure, don't estimate: use `event.usage_metadata.prompt_token_count` or Gemini `countTokens` (see the README section "Bonus: Tool Search Pattern"). Run both agents on the same query.
+
+| Mode | ADK version | Model | Query | First-call prompt tokens | Whole-turn prompt tokens |
+|------|-------------|-------|-------|--------------------------|--------------------------|
+| All GitHub tools (`create_agent()`) | | | | | |
+| Tool search (`create_agent_with_tool_search()`) | | | | | |
+
+- **Measured with:** [usage_metadata / countTokens]
+- **Reduction:** first call [ ]%, whole turn [ ]%
+- **One limit you noticed:** [e.g. what the search costs, or what changes with the ADK version]
+
+---
+
 ## Ideas for Improvement
 
 If you had more time, what would you add or change?

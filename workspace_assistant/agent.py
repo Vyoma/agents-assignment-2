@@ -34,5 +34,11 @@ def create_agent() -> LlmAgent:
 
 
 def create_agent_with_tool_search() -> LlmAgent:
-    """BONUS: Create agent with defer_loading for tool search."""
+    """BONUS: Create the agent with GitHub tool search instead of all GitHub tools.
+
+    Keep your Part 1 tools. Add search_github_tools and the deferred GitHub toolset
+    from tools/mcp_tools.py (plus call_github_tool if you use one), so the first model
+    call declares only the search helpers and at most 2 GitHub tools. See the README
+    section "Bonus: Tool Search Pattern".
+    """
     raise NotImplementedError("Bonus: Implement tool search pattern")

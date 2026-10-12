@@ -46,7 +46,7 @@ workspace_assistant/
 1. Configure McpToolset for GitHub
 2. Update system instruction for GitHub capabilities
 
-**Bonus (+25 pts):** Tool search with defer_loading
+**Bonus (+25 pts):** Tool search: GitHub tools loaded on demand, graded B1 to B5 in the README. Build it with `McpToolset(tool_filter=<function>)` + `search_github_tools(query, tool_context)` + session state, plus a `call_github_tool` proxy (or `_use_invocation_cache = False`) so a found tool works in the same user message on ADK 2.x. Google ADK's McpToolset has no `defer_loading` parameter (that is an Anthropic Messages API field). Token numbers must be measured, not estimated.
 
 ## Key Commands
 
